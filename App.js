@@ -17,6 +17,7 @@ import EventDetail from './src/screens/discover/EventDetail';
 // 3. Alt Sayfalar (Sub-pages)
 import CreateEvent from './src/screens/discover/CreateEvent';
 import Settings from './src/screens/profile/Settings';
+import ChatDetail from './src/screens/chat/ChatDetail';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -35,8 +36,10 @@ function MainTabs() {
 }
 
 // Kök (Root) Navigasyon
+
+// Kök (Root) Navigasyon
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(true); // Geliştirme için true
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   return (
     <NavigationContainer>
@@ -45,11 +48,14 @@ export default function App() {
           <Stack.Screen name="Auth" component={Login} />
         ) : (
           <>
-            {/* Ana Sekmeler ve Normal Sayfalar */}
             <Stack.Group>
+              {/* DİKKAT: Uygulamanın ana ekranı olduğu için MainTabs EN ÜSTTE olmalı! */}
               <Stack.Screen name="MainTabs" component={MainTabs} />
+              
+              {/* Diğer detay sayfaları onun altında sıralanabilir */}
               <Stack.Screen name="Settings" component={Settings} />
               <Stack.Screen name="EventDetail" component={EventDetail} />
+              <Stack.Screen name="ChatDetail" component={ChatDetail} />
             </Stack.Group>
             
             {/* Modal Olarak Açılacak Sayfalar */}
