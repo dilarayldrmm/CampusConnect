@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
+
 // 1. Auth Ekranları
 import Login from './src/screens/auth/Login';
 
@@ -12,7 +13,7 @@ import CommunityList from './src/screens/community/CommunityList';
 import MarketHome from './src/screens/market/MarketHome';
 import ChatList from './src/screens/chat/ChatList';
 import Profile from './src/screens/profile/Profile';
-
+import EventDetail from './src/screens/discover/EventDetail';
 // 3. Alt Sayfalar (Sub-pages)
 import CreateEvent from './src/screens/discover/CreateEvent';
 import Settings from './src/screens/profile/Settings';
@@ -48,6 +49,7 @@ export default function App() {
             <Stack.Group>
               <Stack.Screen name="MainTabs" component={MainTabs} />
               <Stack.Screen name="Settings" component={Settings} />
+              <Stack.Screen name="EventDetail" component={EventDetail} />
             </Stack.Group>
             
             {/* Modal Olarak Açılacak Sayfalar */}

@@ -131,7 +131,11 @@ export default function Discover({ navigation}) {
           <Text style={styles.sectionTitle}>Featured Events</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {FEATURED_EVENTS.map(event => (
-              <TouchableOpacity key={event.id} activeOpacity={0.9}>
+              <TouchableOpacity 
+  key={event.id} 
+  activeOpacity={0.9}
+  onPress={() => navigation.navigate('EventDetail', { id: event.id })}
+>
                 <ImageBackground
                   source={{ uri: event.image }}
                   style={styles.featuredCard}
@@ -157,7 +161,12 @@ export default function Discover({ navigation}) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming Events</Text>
           {UPCOMING_EVENTS.map(event => (
-            <TouchableOpacity key={event.id} style={styles.upcomingCard} activeOpacity={0.9}>
+            <TouchableOpacity 
+  key={event.id} 
+  style={styles.upcomingCard} 
+  activeOpacity={0.9}
+  onPress={() => navigation.navigate('EventDetail', { id: event.id })}
+>
               <Image source={{ uri: event.image }} style={styles.upcomingImage} />
               <View style={styles.categoryBadge}>
                 <Text style={styles.categoryBadgeText}>{event.category}</Text>
