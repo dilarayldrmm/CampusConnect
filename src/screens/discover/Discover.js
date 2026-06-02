@@ -56,7 +56,7 @@ const UPCOMING_EVENTS = [
   }
 ];
 
-export default function Discover() {
+export default function Discover({ navigation}) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeDate, setActiveDate] = useState('All');
 
@@ -67,10 +67,13 @@ export default function Discover() {
         {/* HEADER: Başlık ve Create Butonu */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Discover</Text>
-          <TouchableOpacity style={styles.createButton}>
-            <Feather name="plus" size={16} color="#FFF" />
-            <Text style={styles.createButtonText}>Create</Text>
-          </TouchableOpacity>
+         <TouchableOpacity 
+  style={styles.createButton} 
+  onPress={() => navigation.navigate('CreateEvent')}
+>
+  <Feather name="plus" size={16} color="#FFF" />
+  <Text style={styles.createButtonText}>Create</Text>
+</TouchableOpacity>
         </View>
 
         {/* SEARCH BAR */}

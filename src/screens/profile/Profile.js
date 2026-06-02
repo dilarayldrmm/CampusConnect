@@ -44,7 +44,7 @@ const CREATED_EVENTS = [
   }
 ];
 
-export default function Profile() {
+export default function Profile({ navigation}) {
   const [activeTab, setActiveTab] = useState('Created Events');
 
   return (
@@ -60,13 +60,17 @@ export default function Profile() {
           
           {/* SAĞ ÜST İKONLAR (Bildirim & Ayarlar) */}
           <View style={styles.topRightIcons}>
-            <TouchableOpacity style={styles.iconButton}>
-              <Feather name="bell" size={20} color="#111827" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-              <Feather name="settings" size={20} color="#111827" />
-            </TouchableOpacity>
-          </View>
+  <TouchableOpacity style={styles.iconButton}>
+    <Feather name="bell" size={20} color="#111827" />
+  </TouchableOpacity>
+  
+  <TouchableOpacity 
+    style={styles.iconButton}
+    onPress={() => navigation.navigate('Settings')}
+  >
+    <Feather name="settings" size={20} color="#111827" />
+  </TouchableOpacity>
+</View>
 
           {/* PROFİL BİLGİLERİ (Avatar, İsim, Bölüm) */}
           <View style={styles.profileInfoSection}>
