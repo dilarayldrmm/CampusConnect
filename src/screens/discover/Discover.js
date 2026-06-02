@@ -56,7 +56,7 @@ const UPCOMING_EVENTS = [
   }
 ];
 
-export default function Discover() {
+export default function Discover({ navigation}) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeDate, setActiveDate] = useState('All');
 
@@ -67,10 +67,13 @@ export default function Discover() {
         {/* HEADER: Başlık ve Create Butonu */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Discover</Text>
-          <TouchableOpacity style={styles.createButton}>
-            <Feather name="plus" size={16} color="#FFF" />
-            <Text style={styles.createButtonText}>Create</Text>
-          </TouchableOpacity>
+         <TouchableOpacity 
+  style={styles.createButton} 
+  onPress={() => navigation.navigate('CreateEvent')}
+>
+  <Feather name="plus" size={16} color="#FFF" />
+  <Text style={styles.createButtonText}>Create</Text>
+</TouchableOpacity>
         </View>
 
         {/* SEARCH BAR */}
@@ -128,7 +131,11 @@ export default function Discover() {
           <Text style={styles.sectionTitle}>Featured Events</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {FEATURED_EVENTS.map(event => (
-              <TouchableOpacity key={event.id} activeOpacity={0.9}>
+              <TouchableOpacity 
+  key={event.id} 
+  activeOpacity={0.9}
+  onPress={() => navigation.navigate('EventDetail', { id: event.id })}
+>
                 <ImageBackground
                   source={{ uri: event.image }}
                   style={styles.featuredCard}
@@ -154,7 +161,12 @@ export default function Discover() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming Events</Text>
           {UPCOMING_EVENTS.map(event => (
-            <TouchableOpacity key={event.id} style={styles.upcomingCard} activeOpacity={0.9}>
+            <TouchableOpacity 
+  key={event.id} 
+  style={styles.upcomingCard} 
+  activeOpacity={0.9}
+  onPress={() => navigation.navigate('EventDetail', { id: event.id })}
+>
               <Image source={{ uri: event.image }} style={styles.upcomingImage} />
               <View style={styles.categoryBadge}>
                 <Text style={styles.categoryBadgeText}>{event.category}</Text>

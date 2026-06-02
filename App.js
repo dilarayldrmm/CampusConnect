@@ -3,7 +3,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
-// 1. Auth Ekranları (Şimdilik sadece Login var)
+
+// 1. Auth Ekranları
 import Login from './src/screens/auth/Login';
 
 // 2. Ana Tab Ekranları
@@ -12,6 +13,10 @@ import CommunityList from './src/screens/community/CommunityList';
 import MarketHome from './src/screens/market/MarketHome';
 import ChatList from './src/screens/chat/ChatList';
 import Profile from './src/screens/profile/Profile';
+import EventDetail from './src/screens/discover/EventDetail';
+// 3. Alt Sayfalar (Sub-pages)
+import CreateEvent from './src/screens/discover/CreateEvent';
+import Settings from './src/screens/profile/Settings';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -31,19 +36,27 @@ function MainTabs() {
 
 // Kök (Root) Navigasyon
 export default function App() {
-  // TODO: İleride Firebase Context'ten (AuthContext) gelecek.
-  // Geliştirme yaparken bu değeri true/false yaparak ekranları test edebilirsin.
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(true); // Geliştirme için true
 
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
-          // Giriş yapılmamışsa Auth akışını göster
           <Stack.Screen name="Auth" component={Login} />
         ) : (
-          // Giriş yapılmışsa Ana Tab akışını göster
-          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <>
+            {/* Ana Sekmeler ve Normal Sayfalar */}
+            <Stack.Group>
+              <Stack.Screen name="MainTabs" component={MainTabs} />
+              <Stack.Screen name="Settings" component={Settings} />
+              <Stack.Screen name="EventDetail" component={EventDetail} />
+            </Stack.Group>
+            
+            {/* Modal Olarak Açılacak Sayfalar */}
+            <Stack.Group screenOptions={{ presentation: 'modal' }}>
+              <Stack.Screen name="CreateEvent" component={CreateEvent} />
+            </Stack.Group>
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
