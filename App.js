@@ -18,6 +18,8 @@ import EventDetail from './src/screens/discover/EventDetail';
 import CreateEvent from './src/screens/discover/CreateEvent';
 import Settings from './src/screens/profile/Settings';
 import ChatDetail from './src/screens/chat/ChatDetail';
+import ListingDetail from './src/screens/market/ListingDetail';
+
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -56,6 +58,7 @@ export default function App() {
               <Stack.Screen name="Settings" component={Settings} />
               <Stack.Screen name="EventDetail" component={EventDetail} />
               <Stack.Screen name="ChatDetail" component={ChatDetail} />
+              <Stack.Screen name="ListingDetail" component={ListingDetail} />
             </Stack.Group>
             
             {/* Modal Olarak Açılacak Sayfalar */}
