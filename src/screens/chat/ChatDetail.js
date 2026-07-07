@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,13 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 
-// Tasarımdaki sahte (Dummy) mesaj geçmişi
-const DUMMY_MESSAGES = [
+// Varsayılan mesajlarımızı artık dışarıda sabit değil, içeride başlangıç state'i olarak kullanacağız.
+const INITIAL_MESSAGES = [
   { id: '1', text: 'Hey! Are you going to the Spring Music Festival?', time: '10:30 AM', isMe: false },
   { id: '2', text: 'Yes, already joined. Can\'t wait!', time: '10:33 AM', isMe: true },
   { id: '3', text: 'Awesome! Let\'s meet up there.', time: '10:33 AM', isMe: false },
@@ -26,11 +27,42 @@ const DUMMY_MESSAGES = [
 
 export default function ChatDetail({ navigation, route }) {
   const [inputText, setInputText] = useState('');
+  // Mesajları tutacağımız Local State (Mesaj gönderdikçe burası güncellenecek)
+  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  
+  // Yeni mesaj geldiğinde listeyi en alta kaydırmak için referans
+  const flatListRef = useRef();
 
-  // Önceki sayfadan (ChatList) gelen veriyi alıyoruz. 
-  // Şimdilik test için varsayılan bir isim atadık.
-  const userName = route?.params?.name || 'Sarah Johnson';
-  const isOnline = route?.params?.isOnline ?? true;
+  const userName = (route && route.params && route.params.name) ? route.params.name : 'Sarah Johnson';
+  const isOnline = (route && route.params && route.params.isOnline !== undefined) ? route.params.isOnline : true;
+
+  // MESAJ GÖNDERME FONKSİYONU
+  const handleSend = () => {
+    if (inputText.trim().length === 0) return; // Boş mesaj atılmasını engelle
+
+    // Şu anki saati 10:45 AM formatında al
+    const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    const newMessage = {
+      id: Date.now().toString(), // Benzersiz ID
+      text: inputText.trim(),
+      time: currentTime,
+      isMe: true, // Biz gönderdiğimiz için sağa yaslanacak
+    };
+
+    // Yeni mesajı mevcut listeye ekle
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setInputText(''); // Input'u temizle
+  };
+
+  // GELİŞTİRME AŞAMASINDAKİ BUTONLAR İÇİN UYARI FONKSİYONU
+  const handleFeatureNotReady = (featureName) => {
+    Alert.alert(
+      "Geliştirme Aşamasında", 
+      `${featureName} özelliği Firebase entegrasyonu aşamasında aktif edilecektir.`,
+      [{ text: "Anladım", style: "cancel" }]
+    );
+  };
 
   const renderMessage = ({ item }) => (
     <View style={[styles.messageWrapper, item.isMe ? styles.messageWrapperMe : styles.messageWrapperOther]}>
@@ -57,7 +89,6 @@ export default function ChatDetail({ navigation, route }) {
         style={styles.container} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        
         {/* HEADER */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -69,25 +100,36 @@ export default function ChatDetail({ navigation, route }) {
             {isOnline && <Text style={styles.onlineStatus}>Active now</Text>}
           </View>
           
-          <TouchableOpacity style={styles.headerIcon}>
+          {/* SAĞ ÜSTTEKİ 3 NOKTA BUTONU */}
+          <TouchableOpacity 
+            style={styles.headerIcon}
+            onPress={() => handleFeatureNotReady('Sohbet Seçenekleri')}
+          >
             <Feather name="more-vertical" size={24} color="#111827" />
           </TouchableOpacity>
         </View>
 
         {/* MESAJ LİSTESİ */}
         <FlatList
-          data={DUMMY_MESSAGES}
-          keyExtractor={item => item.id}
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
           renderItem={renderMessage}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          // Mesajların alttan başlaması ve yeni mesaj gelince alta kayması için
-          inverted={false} 
+          // Liste boyutu değiştiğinde (yeni mesaj eklendiğinde) otomatik en alta kaydır
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
 
         {/* MESAJ YAZMA ALANI */}
         <View style={styles.inputContainer}>
-          <TouchableOpacity style={styles.attachButton}>
+          
+          {/* DOSYA EKLEME (+) BUTONU */}
+          <TouchableOpacity 
+            style={styles.attachButton}
+            onPress={() => handleFeatureNotReady('Medya ve Dosya Ekleme')}
+          >
             <Feather name="plus" size={24} color="#6B7280" />
           </TouchableOpacity>
           
@@ -102,12 +144,16 @@ export default function ChatDetail({ navigation, route }) {
             />
           </View>
           
+          {/* EĞER YAZI VARSA GÖNDER BUTONU ÇIKSIN, YOKSA MİKROFON ÇIKSIN */}
           {inputText.trim().length > 0 ? (
-            <TouchableOpacity style={styles.sendButton}>
+            <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
               <Ionicons name="send" size={20} color="#FFF" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.micButton}>
+            <TouchableOpacity 
+              style={styles.micButton}
+              onPress={() => handleFeatureNotReady('Sesli Mesaj')}
+            >
               <Feather name="mic" size={24} color="#6B7280" />
             </TouchableOpacity>
           )}
@@ -119,13 +165,8 @@ export default function ChatDetail({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFF',
-  },
-  container: {
-    flex: 1,
-  },
+  safeArea: { flex: 1, backgroundColor: '#FFF' },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -136,86 +177,25 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F3F4F6',
     backgroundColor: '#FFF',
   },
-  backButton: {
-    padding: 8,
-  },
-  headerTitleContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  onlineStatus: {
-    fontSize: 12,
-    color: '#10B981', // Yeşil online rengi
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  headerIcon: {
-    padding: 8,
-  },
-  listContent: {
-    padding: 20,
-    paddingBottom: 10,
-  },
-  messageWrapper: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    alignItems: 'flex-end',
-  },
-  messageWrapperMe: {
-    justifyContent: 'flex-end',
-  },
-  messageWrapperOther: {
-    justifyContent: 'flex-start',
-  },
-  messageAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    marginRight: 8,
-    marginBottom: 16, // Saatin yanına hizalamak için
-  },
-  messageContentMe: {
-    alignItems: 'flex-end',
-    maxWidth: '80%',
-  },
-  messageContentOther: {
-    alignItems: 'flex-start',
-    maxWidth: '80%',
-  },
-  messageBubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
-    marginBottom: 4,
-  },
-  bubbleMe: {
-    backgroundColor: '#4F46E5', // Bizim mesajlar mor
-    borderBottomRightRadius: 4,
-  },
-  bubbleOther: {
-    backgroundColor: '#F3F4F6', // Karşı taraf gri
-    borderBottomLeftRadius: 4,
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  messageTextMe: {
-    color: '#FFF',
-  },
-  messageTextOther: {
-    color: '#111827',
-  },
-  messageTime: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    marginHorizontal: 4,
-  },
+  backButton: { padding: 8 },
+  headerTitleContainer: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  onlineStatus: { fontSize: 12, color: '#10B981', fontWeight: '500', marginTop: 2 },
+  headerIcon: { padding: 8 },
+  listContent: { padding: 20, paddingBottom: 10 },
+  messageWrapper: { flexDirection: 'row', marginBottom: 20, alignItems: 'flex-end' },
+  messageWrapperMe: { justifyContent: 'flex-end' },
+  messageWrapperOther: { justifyContent: 'flex-start' },
+  messageAvatar: { width: 28, height: 28, borderRadius: 14, marginRight: 8, marginBottom: 16 },
+  messageContentMe: { alignItems: 'flex-end', maxWidth: '80%' },
+  messageContentOther: { alignItems: 'flex-start', maxWidth: '80%' },
+  messageBubble: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, marginBottom: 4 },
+  bubbleMe: { backgroundColor: '#4F46E5', borderBottomRightRadius: 4 },
+  bubbleOther: { backgroundColor: '#F3F4F6', borderBottomLeftRadius: 4 },
+  messageText: { fontSize: 15, lineHeight: 22 },
+  messageTextMe: { color: '#FFF' },
+  messageTextOther: { color: '#111827' },
+  messageTime: { fontSize: 11, color: '#9CA3AF', marginHorizontal: 4 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -225,11 +205,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#F3F4F6',
     backgroundColor: '#FFF',
   },
-  attachButton: {
-    padding: 10,
-    marginRight: 8,
-    marginBottom: 2,
-  },
+  attachButton: { padding: 10, marginRight: 8, marginBottom: 2 },
   textInputWrapper: {
     flex: 1,
     backgroundColor: '#F3F4F6',
@@ -241,10 +217,7 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     justifyContent: 'center',
   },
-  textInput: {
-    fontSize: 15,
-    color: '#111827',
-  },
+  textInput: { fontSize: 15, color: '#111827' },
   sendButton: {
     width: 44,
     height: 44,
@@ -254,8 +227,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 2,
   },
-  micButton: {
-    padding: 10,
-    marginBottom: 2,
-  },
+  micButton: { padding: 10, marginBottom: 2 },
 });

@@ -13,11 +13,9 @@ import {
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 
-// Ekran genişliğini alıp 2 sütuna göre kart genişliği hesaplıyoruz
 const { width } = Dimensions.get('window');
-const cardWidth = (width - 60) / 2; // Kenar boşlukları ve aradaki boşluğu çıkarıp ikiye bölüyoruz
+const cardWidth = (width - 60) / 2; 
 
-// Tasarıma Uygun Dummy Veriler
 const CATEGORIES = ['All', 'Books', 'Electronics', 'Clothing', 'Furniture', 'Other'];
 const PRICE_RANGES = ['All', '$0-25', '$26-50', '$50-100', '$100+'];
 
@@ -72,16 +70,18 @@ const DUMMY_LISTINGS = [
   },
 ];
 
-export default function MarketHome() {
+export default function MarketHome({ navigation }) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [activePrice, setActivePrice] = useState('All');
 
-  // Her bir ürün kartını oluşturan fonksiyon
   const renderListingItem = ({ item }) => (
-    <TouchableOpacity style={styles.cardContainer} activeOpacity={0.9}>
+    <TouchableOpacity 
+      style={styles.cardContainer} 
+      activeOpacity={0.9}
+      onPress={() => navigation.navigate('ListingDetail', { id: item.id })}
+    >
       <View style={styles.imageContainer}>
         <Image source={{ uri: item.image }} style={styles.cardImage} />
-        {/* Durum Rozeti (Like New, Good) */}
         <View style={[styles.conditionBadge, item.condition === 'Like New' ? styles.badgeLikeNew : styles.badgeGood]}>
           <Text style={styles.conditionText}>{item.condition}</Text>
         </View>
@@ -101,8 +101,6 @@ export default function MarketHome() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      
-      {/* BAŞLIK VE SATIŞ YAP BUTONU */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Marketplace</Text>
         <TouchableOpacity style={styles.sellButton}>
@@ -111,7 +109,6 @@ export default function MarketHome() {
         </TouchableOpacity>
       </View>
 
-      {/* ARAMA ÇUBUĞU */}
       <View style={styles.searchContainer}>
         <Feather name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
         <TextInput
@@ -121,9 +118,7 @@ export default function MarketHome() {
         />
       </View>
 
-      {/* FİLTRELER (Sabit Üst Kısım) */}
       <View style={styles.filtersWrapper}>
-        {/* Kategoriler */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ paddingRight: 20 }}>
           {CATEGORIES.map((cat, index) => (
             <TouchableOpacity
@@ -142,7 +137,6 @@ export default function MarketHome() {
           ))}
         </ScrollView>
 
-        {/* Fiyat Aralıkları */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.priceScroll} contentContainerStyle={{ paddingRight: 20 }}>
           {PRICE_RANGES.map((price, index) => (
             <TouchableOpacity
@@ -162,7 +156,6 @@ export default function MarketHome() {
         </ScrollView>
       </View>
 
-      {/* ÜRÜN LİSTESİ (2 Sütunlu Izgara) */}
       <FlatList
         data={DUMMY_LISTINGS}
         keyExtractor={(item) => item.id}
@@ -177,173 +170,53 @@ export default function MarketHome() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
+  safeArea: { flex: 1, backgroundColor: '#FAFAFA' },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 16,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, marginTop: 10, marginBottom: 16,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-  },
+  headerTitle: { fontSize: 28, fontWeight: '700', color: '#111827' },
   sellButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4F46E5', // Mor vurgu rengimiz
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#4F46E5',
+    paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20,
   },
-  sellButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
+  sellButtonText: { color: '#FFF', fontSize: 14, fontWeight: '600', marginLeft: 4 },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    marginHorizontal: 20,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 46,
-    marginBottom: 16,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6',
+    marginHorizontal: 20, borderRadius: 12, paddingHorizontal: 16, height: 46, marginBottom: 16,
   },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#111827',
-  },
-  filtersWrapper: {
-    marginBottom: 16,
-  },
-  filterScroll: {
-    paddingLeft: 20,
-    marginBottom: 12,
-  },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, fontSize: 15, color: '#111827' },
+  filtersWrapper: { marginBottom: 16 },
+  filterScroll: { paddingLeft: 20, marginBottom: 12 },
   categoryPill: {
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 20,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginRight: 8,
+    paddingVertical: 8, paddingHorizontal: 18, borderRadius: 20,
+    backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E5E7EB', marginRight: 8,
   },
-  categoryPillActive: {
-    backgroundColor: '#4F46E5',
-    borderColor: '#4F46E5',
-  },
-  categoryText: {
-    color: '#4B5563',
-    fontWeight: '500',
-    fontSize: 13,
-  },
-  categoryTextActive: {
-    color: '#FFF',
-  },
-  priceScroll: {
-    paddingLeft: 20,
-  },
-  pricePill: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    marginRight: 8,
-  },
-  pricePillActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#111827',
-  },
-  priceText: {
-    color: '#6B7280',
-    fontWeight: '500',
-    fontSize: 13,
-  },
-  priceTextActive: {
-    color: '#111827',
-    fontWeight: '600',
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  columnWrapper: {
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
+  categoryPillActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
+  categoryText: { color: '#4B5563', fontWeight: '500', fontSize: 13 },
+  categoryTextActive: { color: '#FFF' },
+  priceScroll: { paddingLeft: 20 },
+  pricePill: { paddingVertical: 6, paddingHorizontal: 14, marginRight: 8 },
+  pricePillActive: { borderBottomWidth: 2, borderBottomColor: '#111827' },
+  priceText: { color: '#6B7280', fontWeight: '500', fontSize: 13 },
+  priceTextActive: { color: '#111827', fontWeight: '600' },
+  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  columnWrapper: { justifyContent: 'space-between', marginBottom: 16 },
   cardContainer: {
-    width: cardWidth,
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    overflow: 'hidden',
+    width: cardWidth, backgroundColor: '#FFF', borderRadius: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, overflow: 'hidden',
   },
-  imageContainer: {
-    width: '100%',
-    height: 120,
-    backgroundColor: '#F3F4F6',
-  },
-  cardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  conditionBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  badgeLikeNew: {
-    backgroundColor: 'rgba(16, 185, 129, 0.9)', // Yeşilmsi (Success)
-  },
-  badgeGood: {
-    backgroundColor: 'rgba(245, 158, 11, 0.9)', // Turuncumsu (Warning)
-  },
-  conditionText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  cardContent: {
-    padding: 12,
-  },
-  itemTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  itemPrice: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#4F46E5', // Mor renkli fiyat
-    marginBottom: 8,
-  },
-  sellerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sellerText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 4,
-  },
+  imageContainer: { width: '100%', height: 120, backgroundColor: '#F3F4F6' },
+  cardImage: { width: '100%', height: '100%' },
+  conditionBadge: { position: 'absolute', top: 8, right: 8, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8 },
+  badgeLikeNew: { backgroundColor: 'rgba(16, 185, 129, 0.9)' },
+  badgeGood: { backgroundColor: 'rgba(245, 158, 11, 0.9)' },
+  conditionText: { color: '#FFF', fontSize: 10, fontWeight: '700' },
+  cardContent: { padding: 12 },
+  itemTitle: { fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 4 },
+  itemPrice: { fontSize: 16, fontWeight: '700', color: '#4F46E5', marginBottom: 8 },
+  sellerContainer: { flexDirection: 'row', alignItems: 'center' },
+  sellerText: { fontSize: 12, color: '#6B7280', marginLeft: 4 },
 });
