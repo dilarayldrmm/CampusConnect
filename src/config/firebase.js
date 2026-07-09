@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-
+import { getStorage } from 'firebase/storage';
 // Senin Firebase konsolundan aldığımız yapılandırma anahtarları
 const firebaseConfig = {
   apiKey: "AIzaSyBg5muNvqyv8HubiJtiSm_OZxrsQqKPPXE",
@@ -19,5 +19,5 @@ const app = initializeApp(firebaseConfig);
 // Auth ve Firestore servislerini dışa aktar (Diğer sayfalarda kullanacağız)
 const auth = getAuth(app);
 const db = getFirestore(app);
-
+export const storage = getStorage(app);
 export { auth, db };
