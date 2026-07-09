@@ -17,12 +17,12 @@ import Profile from './src/screens/profile/Profile';
 
 // 3. Alt Sayfalar (Sub-pages)
 import EventDetail from './src/screens/discover/EventDetail';
-// 3. Alt Sayfalar (Sub-pages)
 import CreateEvent from './src/screens/discover/CreateEvent';
 import Settings from './src/screens/profile/Settings';
 import ChatDetail from './src/screens/chat/ChatDetail';
 import ListingDetail from './src/screens/market/ListingDetail';
 import CommunityDetail from './src/screens/community/CommunityDetail';
+import CreateListing from './src/screens/market/CreateListing';
 
 // Context
 import { AuthProvider, AuthContext } from './src/context/AuthContext';
@@ -78,6 +78,7 @@ function RootNavigator() {
               <Stack.Screen name="EventDetail" component={EventDetail} />
               <Stack.Screen name="ChatDetail" component={ChatDetail} />
               <Stack.Screen name="ListingDetail" component={ListingDetail} />
+              <Stack.Screen name="CreateListing" component={CreateListing} />
               <Stack.Screen name="CommunityDetail" component={CommunityDetail} />
             </Stack.Group>
             

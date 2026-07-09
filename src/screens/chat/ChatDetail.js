@@ -1,231 +1,164 @@
-import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Alert
+import React, { useState, useEffect, useContext } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  SafeAreaView, 
+  TextInput, 
+  TouchableOpacity, 
+  FlatList, 
+  KeyboardAvoidingView, 
+  Platform 
 } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 
-// Varsayılan mesajlarımızı artık dışarıda sabit değil, içeride başlangıç state'i olarak kullanacağız.
-const INITIAL_MESSAGES = [
-  { id: '1', text: 'Hey! Are you going to the Spring Music Festival?', time: '10:30 AM', isMe: false },
-  { id: '2', text: 'Yes, already joined. Can\'t wait!', time: '10:33 AM', isMe: true },
-  { id: '3', text: 'Awesome! Let\'s meet up there.', time: '10:33 AM', isMe: false },
-  { id: '4', text: 'Sounds great! What time works for you?', time: '10:34 AM', isMe: true },
-  { id: '5', text: 'How about 6:30 PM at the entrance?', time: '10:36 AM', isMe: false },
-  { id: '6', text: 'Perfect! See you then.', time: '10:38 AM', isMe: true },
-  { id: '7', text: 'Thanks! See you at the event 🎉', time: '10:39 AM', isMe: false },
-];
+// Firebase Bağlantıları
+import { db } from '../../config/firebase';
+import { collection, doc, addDoc, updateDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { AuthContext } from '../../context/AuthContext';
 
-export default function ChatDetail({ navigation, route }) {
+export default function ChatDetail({ route, navigation }) {
+  const { chatId, listingTitle, sellerName } = route.params;
+  const { user } = useContext(AuthContext); // Giriş yapan kişi (Sen)
+
+  const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
-  // Mesajları tutacağımız Local State (Mesaj gönderdikçe burası güncellenecek)
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
-  
-  // Yeni mesaj geldiğinde listeyi en alta kaydırmak için referans
-  const flatListRef = useRef();
 
-  const userName = (route && route.params && route.params.name) ? route.params.name : 'Sarah Johnson';
-  const isOnline = (route && route.params && route.params.isOnline !== undefined) ? route.params.isOnline : true;
+  // 1. MESAJLARI GERÇEK ZAMANLI DİNLE
+  useEffect(() => {
+    // Sohbet odasının içindeki "messages" alt koleksiyonuna bağlanıyoruz
+    const messagesRef = collection(db, 'chats', chatId, 'messages');
+    
+    // Mesajları tarihe göre (en yeni en üstte/altta olacak şekilde) sırala
+    const q = query(messagesRef, orderBy('createdAt', 'desc'));
 
-  // MESAJ GÖNDERME FONKSİYONU
-  const handleSend = () => {
-    if (inputText.trim().length === 0) return; // Boş mesaj atılmasını engelle
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedMessages = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setMessages(fetchedMessages);
+    });
 
-    // Şu anki saati 10:45 AM formatında al
-    const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return () => unsubscribe();
+  }, [chatId]);
 
-    const newMessage = {
-      id: Date.now().toString(), // Benzersiz ID
-      text: inputText.trim(),
-      time: currentTime,
-      isMe: true, // Biz gönderdiğimiz için sağa yaslanacak
-    };
+  // 2. YENİ MESAJ GÖNDERME FONKSİYONU
+  const sendMessage = async () => {
+    if (!inputText.trim()) return; // Boş mesaj gönderilmesin
 
-    // Yeni mesajı mevcut listeye ekle
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
-    setInputText(''); // Input'u temizle
+    const messageToSend = inputText;
+    setInputText(''); // Gönder'e basınca yazma alanını anında temizle
+
+    try {
+      // a) Mesajı "messages" alt koleksiyonuna ekle
+      const messagesRef = collection(db, 'chats', chatId, 'messages');
+      await addDoc(messagesRef, {
+        text: messageToSend,
+        senderId: user.uid,
+        createdAt: serverTimestamp()
+      });
+
+      // b) Gelen Kutusunda son mesajı göstermek için ana sohbet dökümanını güncelle
+      const chatRef = doc(db, 'chats', chatId);
+      await updateDoc(chatRef, {
+        lastMessage: messageToSend,
+        updatedAt: serverTimestamp()
+      });
+
+    } catch (error) {
+      console.log("Mesaj gönderme hatası:", error);
+    }
   };
 
-  // GELİŞTİRME AŞAMASINDAKİ BUTONLAR İÇİN UYARI FONKSİYONU
-  const handleFeatureNotReady = (featureName) => {
-    Alert.alert(
-      "Geliştirme Aşamasında", 
-      `${featureName} özelliği Firebase entegrasyonu aşamasında aktif edilecektir.`,
-      [{ text: "Anladım", style: "cancel" }]
-    );
-  };
+  // 3. MESAJ BALONCUKLARI TASARIMI
+  const renderMessage = ({ item }) => {
+    // Mesajı sen mi attın, karşı taraf mı?
+    const isMyMessage = item.senderId === user.uid;
 
-  const renderMessage = ({ item }) => (
-    <View style={[styles.messageWrapper, item.isMe ? styles.messageWrapperMe : styles.messageWrapperOther]}>
-      {!item.isMe && (
-        <Image 
-          source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=100&auto=format&fit=crop' }} 
-          style={styles.messageAvatar} 
-        />
-      )}
-      <View style={item.isMe ? styles.messageContentMe : styles.messageContentOther}>
-        <View style={[styles.messageBubble, item.isMe ? styles.bubbleMe : styles.bubbleOther]}>
-          <Text style={[styles.messageText, item.isMe ? styles.messageTextMe : styles.messageTextOther]}>
+    return (
+      <View style={[styles.messageWrapper, isMyMessage ? styles.messageWrapperRight : styles.messageWrapperLeft]}>
+        <View style={[styles.messageBubble, isMyMessage ? styles.messageBubbleRight : styles.messageBubbleLeft]}>
+          <Text style={[styles.messageText, isMyMessage ? styles.messageTextRight : styles.messageTextLeft]}>
             {item.text}
           </Text>
         </View>
-        <Text style={styles.messageTime}>{item.time}</Text>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.container}>
+      {/* ÜST BAR (HEADER) */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Feather name="arrow-left" size={24} color="#111827" />
+        </TouchableOpacity>
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle}>{sellerName}</Text>
+          <Text style={styles.headerSubtitle}>{listingTitle}</Text>
+        </View>
+        <View style={{ width: 40 }} />
+      </View>
+
+      {/* KLAVYE AÇILINCA EKRANI YUKARI KAYDIRAN YAPI */}
       <KeyboardAvoidingView 
-        style={styles.container} 
+        style={styles.chatArea} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* HEADER */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Feather name="arrow-left" size={24} color="#111827" />
-          </TouchableOpacity>
-          
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>{userName}</Text>
-            {isOnline && <Text style={styles.onlineStatus}>Active now</Text>}
-          </View>
-          
-          {/* SAĞ ÜSTTEKİ 3 NOKTA BUTONU */}
-          <TouchableOpacity 
-            style={styles.headerIcon}
-            onPress={() => handleFeatureNotReady('Sohbet Seçenekleri')}
-          >
-            <Feather name="more-vertical" size={24} color="#111827" />
-          </TouchableOpacity>
-        </View>
-
         {/* MESAJ LİSTESİ */}
         <FlatList
-          ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
-          contentContainerStyle={styles.listContent}
+          inverted // Listeyi ters çevirir (WhatsApp gibi en yeni mesaj altta başlar)
+          contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
-          // Liste boyutu değiştiğinde (yeni mesaj eklendiğinde) otomatik en alta kaydır
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
 
         {/* MESAJ YAZMA ALANI */}
         <View style={styles.inputContainer}>
-          
-          {/* DOSYA EKLEME (+) BUTONU */}
+          <TextInput
+            style={styles.input}
+            placeholder="Type a message..."
+            placeholderTextColor="#9CA3AF"
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+          />
           <TouchableOpacity 
-            style={styles.attachButton}
-            onPress={() => handleFeatureNotReady('Medya ve Dosya Ekleme')}
+            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]} 
+            onPress={sendMessage}
+            disabled={!inputText.trim()}
           >
-            <Feather name="plus" size={24} color="#6B7280" />
+            <Feather name="send" size={20} color="#FFF" />
           </TouchableOpacity>
-          
-          <View style={styles.textInputWrapper}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Type a message..."
-              placeholderTextColor="#9CA3AF"
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-            />
-          </View>
-          
-          {/* EĞER YAZI VARSA GÖNDER BUTONU ÇIKSIN, YOKSA MİKROFON ÇIKSIN */}
-          {inputText.trim().length > 0 ? (
-            <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
-              <Ionicons name="send" size={20} color="#FFF" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity 
-              style={styles.micButton}
-              onPress={() => handleFeatureNotReady('Sesli Mesaj')}
-            >
-              <Feather name="mic" size={24} color="#6B7280" />
-            </TouchableOpacity>
-          )}
         </View>
-
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFF' },
-  container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    backgroundColor: '#FFF',
-  },
-  backButton: { padding: 8 },
-  headerTitleContainer: { flex: 1, alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#FAFAFA' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  backButton: { padding: 4 },
+  headerInfo: { alignItems: 'center' },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  onlineStatus: { fontSize: 12, color: '#10B981', fontWeight: '500', marginTop: 2 },
-  headerIcon: { padding: 8 },
-  listContent: { padding: 20, paddingBottom: 10 },
-  messageWrapper: { flexDirection: 'row', marginBottom: 20, alignItems: 'flex-end' },
-  messageWrapperMe: { justifyContent: 'flex-end' },
-  messageWrapperOther: { justifyContent: 'flex-start' },
-  messageAvatar: { width: 28, height: 28, borderRadius: 14, marginRight: 8, marginBottom: 16 },
-  messageContentMe: { alignItems: 'flex-end', maxWidth: '80%' },
-  messageContentOther: { alignItems: 'flex-start', maxWidth: '80%' },
-  messageBubble: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20, marginBottom: 4 },
-  bubbleMe: { backgroundColor: '#4F46E5', borderBottomRightRadius: 4 },
-  bubbleOther: { backgroundColor: '#F3F4F6', borderBottomLeftRadius: 4 },
+  headerSubtitle: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  chatArea: { flex: 1 },
+  messageList: { paddingHorizontal: 16, paddingVertical: 20 },
+  messageWrapper: { marginBottom: 12, flexDirection: 'row' },
+  messageWrapperRight: { justifyContent: 'flex-end' },
+  messageWrapperLeft: { justifyContent: 'flex-start' },
+  messageBubble: { maxWidth: '75%', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20 },
+  messageBubbleRight: { backgroundColor: '#10B981', borderBottomRightRadius: 4 },
+  messageBubbleLeft: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E5E7EB', borderBottomLeftRadius: 4 },
   messageText: { fontSize: 15, lineHeight: 22 },
-  messageTextMe: { color: '#FFF' },
-  messageTextOther: { color: '#111827' },
-  messageTime: { fontSize: 11, color: '#9CA3AF', marginHorizontal: 4 },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    backgroundColor: '#FFF',
-  },
-  attachButton: { padding: 10, marginRight: 8, marginBottom: 2 },
-  textInputWrapper: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
-    marginRight: 12,
-    minHeight: 44,
-    maxHeight: 100,
-    justifyContent: 'center',
-  },
-  textInput: { fontSize: 15, color: '#111827' },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#4F46E5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  micButton: { padding: 10, marginBottom: 2 },
+  messageTextRight: { color: '#FFF' },
+  messageTextLeft: { color: '#111827' },
+  inputContainer: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFF', borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  input: { flex: 1, backgroundColor: '#F3F4F6', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, paddingTop: 12, fontSize: 15, color: '#111827', maxHeight: 100, marginRight: 12 },
+  sendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#10B981', justifyContent: 'center', alignItems: 'center', marginBottom: 2 },
+  sendButtonDisabled: { backgroundColor: '#A7F3D0' },
 });

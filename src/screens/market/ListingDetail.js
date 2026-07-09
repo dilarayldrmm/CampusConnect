@@ -1,119 +1,158 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Dimensions,
-  SafeAreaView
-} from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert, StatusBar } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 
-const { width } = Dimensions.get('window');
+// DİKKAT: setDoc ve getDoc eklendi!
+import { db } from '../../config/firebase';
+import { doc, onSnapshot, deleteDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { AuthContext } from '../../context/AuthContext';
 
-// Şimdilik sayfayı dolduracak sahte (Dummy) ürün verisi
-const LISTING_MOCK = {
-  id: '1',
-  title: 'Calculus Textbook - 8th Edition',
-  price: '$35',
-  condition: 'Like New',
-  category: 'Books',
-  description: 'Used for only one semester. Pages are completely clean, no highlights or notes inside. Perfect condition. Meet up at the campus library is preferred.',
-  postedAt: '2 days ago',
-  images: [
-    'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=800&auto=format&fit=crop',
-  ],
-  seller: {
-    name: 'Sarah Johnson',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=200&auto=format&fit=crop',
-    rating: 4.8,
-    joined: 'Joined 2024'
+export default function ListingDetail({ route, navigation }) {
+  const { id } = route.params;
+  const { user } = useContext(AuthContext); 
+
+  const [listing, setListing] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isStartingChat, setIsStartingChat] = useState(false); // Chat bekleme durumu
+
+  useEffect(() => {
+    const docRef = doc(db, 'listings', id);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setListing({ id: docSnap.id, ...docSnap.data() });
+      } else {
+        if (!isDeleting) {
+          Alert.alert("Bilgi", "Bu ilan artık mevcut değil.");
+          navigation.goBack();
+        }
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [id, isDeleting]);
+
+  // SİLME FONKSİYONU
+  const handleDeleteListing = () => {
+    Alert.alert("İlanı Sil", "Bu ilanı kalıcı olarak silmek istediğinize emin misiniz?", [
+      { text: "İptal", style: "cancel" },
+      { 
+        text: "Sil", style: "destructive",
+        onPress: async () => {
+          setIsDeleting(true);
+          try {
+            await deleteDoc(doc(db, 'listings', id));
+            Alert.alert("Başarılı", "İlanınız marketten kaldırıldı.");
+            navigation.goBack();
+          } catch (error) {
+            setIsDeleting(false);
+            Alert.alert("Hata", "İlan silinirken bir sorun oluştu.");
+          }
+        }
+      }
+    ]);
+  };
+
+  // SOHBET (CHAT) BAŞLATMA FONKSİYONU
+  const handleContactSeller = async () => {
+    setIsStartingChat(true);
+    
+    // Benzersiz ID: Hangi İlan + Kim Alıyor
+    const chatId = `${id}_${user.uid}`;
+    const chatRef = doc(db, 'chats', chatId);
+
+    try {
+      const chatSnap = await getDoc(chatRef);
+
+      // Eğer bu ilan için bu kişiyle daha önce sohbet odası açılmadıysa, SIFIRDAN OLUŞTUR
+      if (!chatSnap.exists()) {
+        await setDoc(chatRef, {
+          listingId: id,
+          listingTitle: listing.title,
+          users: [user.uid, listing.creatorId], // [0: Alıcı, 1: Satıcı]
+          buyerId: user.uid,
+          sellerId: listing.creatorId,
+          sellerName: listing.creatorEmail?.split('@')[0] || 'Seller',
+          buyerName: user.email?.split('@')[0] || 'Buyer',
+          lastMessage: "Sohbet başlatıldı...",
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      setIsStartingChat(false);
+      
+      // Odayı oluşturduk (veya zaten vardı bulduk), şimdi Chat sayfasına fırlat
+      navigation.navigate('ChatDetail', {
+        chatId: chatId,
+        listingTitle: listing.title,
+        sellerName: listing.creatorEmail?.split('@')[0] || 'Seller'
+      });
+
+    } catch (error) {
+      setIsStartingChat(false);
+      Alert.alert("Hata", "Sohbet başlatılamadı: " + error.message);
+    }
+  };
+
+  if (loading) {
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#10B981" /></View>;
   }
-};
 
-export default function ListingDetail({ navigation, route }) {
-  // Gelen bir id varsa kullanılabilir, şimdilik MOCK datayı kullanıyoruz
-  const itemId = route?.params?.id;
+  const isOwner = user.uid === listing?.creatorId;
+  if (!listing) return null;
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        
-        {/* ÜRÜN GÖRSELİ */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: LISTING_MOCK.images[0] }} style={styles.productImage} />
-          <SafeAreaView style={styles.headerButtons}>
-            <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
+          <Image source={{ uri: listing.image }} style={styles.image} />
+          <SafeAreaView style={styles.headerSafeArea}>
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
               <Feather name="arrow-left" size={24} color="#111827" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-              <Feather name="heart" size={24} color="#111827" />
             </TouchableOpacity>
           </SafeAreaView>
         </View>
 
-        {/* İÇERİK ALANI */}
-        <View style={styles.contentContainer}>
-          
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{LISTING_MOCK.title}</Text>
-            <Text style={styles.price}>{LISTING_MOCK.price}</Text>
+        <View style={styles.content}>
+          <View style={styles.topRow}>
+            <View style={styles.categoryBadge}><Text style={styles.categoryText}>{listing.category}</Text></View>
+            <Text style={styles.price}>{listing.price} TL</Text>
           </View>
+          <Text style={styles.title}>{listing.title}</Text>
+          <Text style={styles.dateText}>Posted recently</Text>
 
-          <View style={styles.badgeRow}>
-            <View style={styles.conditionBadge}>
-              <Text style={styles.conditionText}>{LISTING_MOCK.condition}</Text>
-            </View>
-            <Text style={styles.timeText}>Posted {LISTING_MOCK.postedAt}</Text>
-          </View>
-
-          {/* SATICI PROFİLİ */}
-          <TouchableOpacity style={styles.sellerCard} activeOpacity={0.8}>
-            <Image source={{ uri: LISTING_MOCK.seller.avatar }} style={styles.sellerAvatar} />
+          <View style={styles.sellerCard}>
+            <View style={styles.sellerAvatar}><Feather name="user" size={20} color="#10B981" /></View>
             <View style={styles.sellerInfo}>
-              <Text style={styles.sellerName}>{LISTING_MOCK.seller.name}</Text>
-              <View style={styles.sellerMeta}>
-                <Ionicons name="star" size={14} color="#F59E0B" />
-                <Text style={styles.ratingText}>{LISTING_MOCK.seller.rating}</Text>
-                <View style={styles.dot} />
-                <Text style={styles.joinedText}>{LISTING_MOCK.seller.joined}</Text>
-              </View>
-            </View>
-            <Feather name="chevron-right" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          {/* AÇIKLAMA */}
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.description}>{LISTING_MOCK.description}</Text>
-
-          {/* DETAYLAR */}
-          <Text style={styles.sectionTitle}>Details</Text>
-          <View style={styles.detailsBox}>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Category</Text>
-              <Text style={styles.detailValue}>{LISTING_MOCK.category}</Text>
-            </View>
-            <View style={styles.detailDivider} />
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Condition</Text>
-              <Text style={styles.detailValue}>{LISTING_MOCK.condition}</Text>
+              <Text style={styles.sellerName}>{listing.creatorEmail?.split('@')[0] || 'Campus Student'}</Text>
+              <Text style={styles.sellerSubtitle}>Verified Student</Text>
             </View>
           </View>
-
+          <View style={styles.divider} />
+          <Text style={styles.sectionTitle}>Description</Text>
+          <Text style={styles.description}>{listing.description}</Text>
         </View>
       </ScrollView>
 
-      {/* ALT BAR - MESAJ GÖNDER */}
+      {/* ALT BAR - BUTONLAR */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity 
-          style={styles.messageButton}
-          onPress={() => navigation.navigate('ChatDetail', { name: LISTING_MOCK.seller.name })}
-        >
-          <Feather name="message-circle" size={20} color="#FFF" />
-          <Text style={styles.messageButtonText}>Message Seller</Text>
-        </TouchableOpacity>
+        {!isOwner ? (
+          <TouchableOpacity style={styles.contactButton} onPress={handleContactSeller} disabled={isStartingChat}>
+            {isStartingChat ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.contactButtonText}>Message Seller</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={[styles.contactButton, { backgroundColor: '#EF4444' }]} onPress={handleDeleteListing} disabled={isDeleting}>
+            {isDeleting ? <ActivityIndicator color="#FFF" /> : <><Feather name="trash-2" size={20} color="#FFF" style={{ marginRight: 8 }} /><Text style={styles.contactButtonText}>Delete Listing</Text></>}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -121,53 +160,28 @@ export default function ListingDetail({ navigation, route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { paddingBottom: 100 },
-  imageContainer: { width: '100%', height: 350, position: 'relative', backgroundColor: '#F3F4F6' },
-  productImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  headerButtons: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 10,
-  },
-  iconButton: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
-  },
-  contentContainer: { padding: 24 },
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  title: { fontSize: 22, fontWeight: '700', color: '#111827', flex: 1, marginRight: 16 },
-  price: { fontSize: 24, fontWeight: '800', color: '#4F46E5' },
-  badgeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
-  conditionBadge: { backgroundColor: '#ECFDF5', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, marginRight: 12 },
-  conditionText: { color: '#10B981', fontWeight: '700', fontSize: 12, textTransform: 'uppercase' },
-  timeText: { fontSize: 13, color: '#6B7280' },
-  sellerCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB',
-    padding: 16, borderRadius: 16, marginBottom: 24, borderWidth: 1, borderColor: '#F3F4F6'
-  },
-  sellerAvatar: { width: 48, height: 48, borderRadius: 24, marginRight: 12 },
+  imageContainer: { width: '100%', height: 350, backgroundColor: '#F3F4F6', position: 'relative' },
+  image: { width: '100%', height: '100%', resizeMode: 'cover' },
+  headerSafeArea: { position: 'absolute', top: 0, left: 0, right: 0 },
+  backButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginLeft: 20, marginTop: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  content: { padding: 24 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  categoryBadge: { backgroundColor: '#ECFDF5', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12 },
+  categoryText: { color: '#10B981', fontSize: 13, fontWeight: '700' },
+  price: { fontSize: 28, fontWeight: '800', color: '#10B981' },
+  title: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  dateText: { fontSize: 13, color: '#9CA3AF', marginBottom: 24 },
+  sellerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', padding: 16, borderRadius: 16 },
+  sellerAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   sellerInfo: { flex: 1 },
-  sellerName: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 4 },
-  sellerMeta: { flexDirection: 'row', alignItems: 'center' },
-  ratingText: { fontSize: 13, fontWeight: '600', color: '#111827', marginLeft: 4 },
-  dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB', marginHorizontal: 8 },
-  joinedText: { fontSize: 13, color: '#6B7280' },
+  sellerName: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 2 },
+  sellerSubtitle: { fontSize: 13, color: '#6B7280' },
+  divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 24 },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 12 },
-  description: { fontSize: 15, color: '#4B5563', lineHeight: 24, marginBottom: 24 },
-  detailsBox: { backgroundColor: '#F9FAFB', borderRadius: 12, padding: 16 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 },
-  detailLabel: { fontSize: 14, color: '#6B7280' },
-  detailValue: { fontSize: 14, fontWeight: '500', color: '#111827' },
-  detailDivider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 4 },
-  bottomBar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#FFF', paddingHorizontal: 24, paddingVertical: 16,
-    borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingBottom: 32,
-  },
-  messageButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#4F46E5', paddingVertical: 16, borderRadius: 16, gap: 8,
-  },
-  messageButtonText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  description: { fontSize: 15, color: '#4B5563', lineHeight: 24 },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', paddingHorizontal: 24, paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  contactButton: { flexDirection: 'row', backgroundColor: '#10B981', height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  contactButtonText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
 });
