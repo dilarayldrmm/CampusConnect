@@ -44,6 +44,9 @@ export default function CreateEvent({ navigation }) {
 
     try {
       // 2. Firebase Firestore 'events' (etkinlikler) koleksiyonuna yeni veri ekle
+      // Filtrelerin çalışması için bugünün tarihini "Jun 15, 2026" formatında oluşturuyoruz
+      const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
       await addDoc(collection(db, 'events'), {
         title: title,
         description: description,
@@ -54,6 +57,10 @@ export default function CreateEvent({ navigation }) {
         attendees: 1, // Oluşturan kişi ilk katılımcı
         image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=800&auto=format&fit=crop',
         
+        // EKSİK OLAN ALANLAR EKLENDİ (Keşfet ekranında görünmesi için şart)
+        date: todayStr, 
+        tags: ['New', activeCategory],
+
         // Kritik Bilgiler
         creatorId: user.uid, // Etkinliği oluşturanın gizli ID'si
         creatorEmail: user.email, 
