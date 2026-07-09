@@ -1,21 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  StatusBar
-} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert, StatusBar } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 
-// Firebase bağlantıları (deleteDoc eklendi)
+// DİKKAT: setDoc ve getDoc eklendi!
 import { db } from '../../config/firebase';
-import { doc, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { doc, onSnapshot, deleteDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { AuthContext } from '../../context/AuthContext';
 
 export default function ListingDetail({ route, navigation }) {
@@ -24,16 +13,15 @@ export default function ListingDetail({ route, navigation }) {
 
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false); // Silme işlemi yüklenme durumu
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isStartingChat, setIsStartingChat] = useState(false); // Chat bekleme durumu
 
   useEffect(() => {
     const docRef = doc(db, 'listings', id);
-    
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         setListing({ id: docSnap.id, ...docSnap.data() });
       } else {
-        // İlan silindiğinde veya bulunamadığında geri dön
         if (!isDeleting) {
           Alert.alert("Bilgi", "Bu ilan artık mevcut değil.");
           navigation.goBack();
@@ -41,54 +29,81 @@ export default function ListingDetail({ route, navigation }) {
       }
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, [id, isDeleting]);
 
-  // FİREBASE İLAN SİLME FONKSİYONU
+  // SİLME FONKSİYONU
   const handleDeleteListing = () => {
-    Alert.alert(
-      "İlanı Sil",
-      "Bu ilanı kalıcı olarak silmek istediğinize emin misiniz?",
-      [
-        { text: "İptal", style: "cancel" },
-        { 
-          text: "Sil", 
-          style: "destructive",
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              // Firebase'den dökümanı sil
-              await deleteDoc(doc(db, 'listings', id));
-              Alert.alert("Başarılı", "İlanınız marketten kaldırıldı.");
-              navigation.goBack();
-            } catch (error) {
-              setIsDeleting(false);
-              Alert.alert("Hata", "İlan silinirken bir sorun oluştu.");
-            }
+    Alert.alert("İlanı Sil", "Bu ilanı kalıcı olarak silmek istediğinize emin misiniz?", [
+      { text: "İptal", style: "cancel" },
+      { 
+        text: "Sil", style: "destructive",
+        onPress: async () => {
+          setIsDeleting(true);
+          try {
+            await deleteDoc(doc(db, 'listings', id));
+            Alert.alert("Başarılı", "İlanınız marketten kaldırıldı.");
+            navigation.goBack();
+          } catch (error) {
+            setIsDeleting(false);
+            Alert.alert("Hata", "İlan silinirken bir sorun oluştu.");
           }
         }
-      ]
-    );
+      }
+    ]);
+  };
+
+  // SOHBET (CHAT) BAŞLATMA FONKSİYONU
+  const handleContactSeller = async () => {
+    setIsStartingChat(true);
+    
+    // Benzersiz ID: Hangi İlan + Kim Alıyor
+    const chatId = `${id}_${user.uid}`;
+    const chatRef = doc(db, 'chats', chatId);
+
+    try {
+      const chatSnap = await getDoc(chatRef);
+
+      // Eğer bu ilan için bu kişiyle daha önce sohbet odası açılmadıysa, SIFIRDAN OLUŞTUR
+      if (!chatSnap.exists()) {
+        await setDoc(chatRef, {
+          listingId: id,
+          listingTitle: listing.title,
+          users: [user.uid, listing.creatorId], // [0: Alıcı, 1: Satıcı]
+          buyerId: user.uid,
+          sellerId: listing.creatorId,
+          sellerName: listing.creatorEmail?.split('@')[0] || 'Seller',
+          buyerName: user.email?.split('@')[0] || 'Buyer',
+          lastMessage: "Sohbet başlatıldı...",
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      setIsStartingChat(false);
+      
+      // Odayı oluşturduk (veya zaten vardı bulduk), şimdi Chat sayfasına fırlat
+      navigation.navigate('ChatDetail', {
+        chatId: chatId,
+        listingTitle: listing.title,
+        sellerName: listing.creatorEmail?.split('@')[0] || 'Seller'
+      });
+
+    } catch (error) {
+      setIsStartingChat(false);
+      Alert.alert("Hata", "Sohbet başlatılamadı: " + error.message);
+    }
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#10B981" />
-      </View>
-    );
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#10B981" /></View>;
   }
 
   const isOwner = user.uid === listing?.creatorId;
-
-  // Eğer ilan verisi yoksa boş dön (Hataları önlemek için)
   if (!listing) return null;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.imageContainer}>
           <Image source={{ uri: listing.image }} style={styles.image} />
@@ -101,59 +116,44 @@ export default function ListingDetail({ route, navigation }) {
 
         <View style={styles.content}>
           <View style={styles.topRow}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{listing.category}</Text>
-            </View>
+            <View style={styles.categoryBadge}><Text style={styles.categoryText}>{listing.category}</Text></View>
             <Text style={styles.price}>{listing.price} TL</Text>
           </View>
-
           <Text style={styles.title}>{listing.title}</Text>
           <Text style={styles.dateText}>Posted recently</Text>
 
           <View style={styles.sellerCard}>
-            <View style={styles.sellerAvatar}>
-              <Feather name="user" size={20} color="#10B981" />
-            </View>
+            <View style={styles.sellerAvatar}><Feather name="user" size={20} color="#10B981" /></View>
             <View style={styles.sellerInfo}>
               <Text style={styles.sellerName}>{listing.creatorEmail?.split('@')[0] || 'Campus Student'}</Text>
               <Text style={styles.sellerSubtitle}>Verified Student</Text>
             </View>
           </View>
-
           <View style={styles.divider} />
-
           <Text style={styles.sectionTitle}>Description</Text>
           <Text style={styles.description}>{listing.description}</Text>
         </View>
       </ScrollView>
 
+      {/* ALT BAR - BUTONLAR */}
       <View style={styles.bottomBar}>
         {!isOwner ? (
-          <TouchableOpacity 
-            style={styles.contactButton}
-            onPress={() => Alert.alert("Yakında", "Mesajlaşma modülü eklenecek!")}
-          >
-            <Ionicons name="chatbubble-ellipses-outline" size={22} color="#FFF" style={{ marginRight: 8 }} />
-            <Text style={styles.contactButtonText}>Message Seller</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={[styles.contactButton, { backgroundColor: '#EF4444' }]}
-            onPress={handleDeleteListing}
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
+          <TouchableOpacity style={styles.contactButton} onPress={handleContactSeller} disabled={isStartingChat}>
+            {isStartingChat ? (
               <ActivityIndicator color="#FFF" />
             ) : (
               <>
-                <Feather name="trash-2" size={20} color="#FFF" style={{ marginRight: 8 }} />
-                <Text style={styles.contactButtonText}>Delete Listing</Text>
+                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.contactButtonText}>Message Seller</Text>
               </>
             )}
           </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={[styles.contactButton, { backgroundColor: '#EF4444' }]} onPress={handleDeleteListing} disabled={isDeleting}>
+            {isDeleting ? <ActivityIndicator color="#FFF" /> : <><Feather name="trash-2" size={20} color="#FFF" style={{ marginRight: 8 }} /><Text style={styles.contactButtonText}>Delete Listing</Text></>}
+          </TouchableOpacity>
         )}
       </View>
-      
     </View>
   );
 }
