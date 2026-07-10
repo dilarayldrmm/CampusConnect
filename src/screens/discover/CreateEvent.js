@@ -1,215 +1,108 @@
 import React, { useState, useContext } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  Switch,
-  Alert,
-  ActivityIndicator
-} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, ScrollView, Switch, Alert, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-
-// Firebase ve Context bağlantıları
+import { LinearGradient } from 'expo-linear-gradient';
 import { db } from '../../config/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { AuthContext } from '../../context/AuthContext';
+import { ThemeContext } from '../../context/ThemeContext'; // 1. Context'i import et
 
 const CATEGORIES = ['Concert', 'Seminar', 'Sports', 'Social', 'Academic'];
 
 export default function CreateEvent({ navigation }) {
-  // Aktif kullanıcıyı al (Etkinliği kimin oluşturduğunu kaydetmek için)
   const { user } = useContext(AuthContext);
-
+  const { isDarkMode } = useContext(ThemeContext); // 2. Modu çek
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [activeCategory, setActiveCategory] = useState('Social');
   const [capacity, setCapacity] = useState('');
   const [isOnline, setIsOnline] = useState(false);
-  
   const [isLoading, setIsLoading] = useState(false);
 
-  // FİREBASE'E ETKİNLİK KAYDETME FONKSİYONU
   const handleCreateEvent = async () => {
-    // 1. Boş alan kontrolü
     if (!title.trim() || !description.trim()) {
-      Alert.alert('Eksik Bilgi', 'Lütfen etkinlik başlığını ve açıklamasını doldurun.');
+      Alert.alert('Eksik Bilgi', 'Lütfen başlık ve açıklama girin.');
       return;
     }
-
     setIsLoading(true);
-
     try {
-      // 2. Firebase Firestore 'events' (etkinlikler) koleksiyonuna yeni veri ekle
-      // Filtrelerin çalışması için bugünün tarihini "Jun 15, 2026" formatında oluşturuyoruz
       const todayStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
       await addDoc(collection(db, 'events'), {
-        title: title,
-        description: description,
-        category: activeCategory,
-        capacity: capacity ? Number(capacity) : 0,
-        isOnline: isOnline,
-        location: isOnline ? 'Online' : 'Campus Main Hall',
-        attendees: 1, // Oluşturan kişi ilk katılımcı
-        image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=800&auto=format&fit=crop',
-        
-        // EKSİK OLAN ALANLAR EKLENDİ (Keşfet ekranında görünmesi için şart)
-        date: todayStr, 
-        tags: ['New', activeCategory],
-
-        // Kritik Bilgiler
-        creatorId: user.uid, // Etkinliği oluşturanın gizli ID'si
-        creatorEmail: user.email, 
-        createdAt: serverTimestamp(), // Firebase sunucu saati
+        title, description, category: activeCategory, capacity: Number(capacity),
+        isOnline, location: isOnline ? 'Online' : 'Campus Main Hall',
+        attendees: 1, image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=800&auto=format&fit=crop',
+        date: todayStr, creatorId: user.uid, creatorEmail: user.email, createdAt: serverTimestamp(),
       });
-
       setIsLoading(false);
-
-      // 3. Başarı mesajı ve Modalı kapatma
-      Alert.alert(
-        "Harika!",
-        "Etkinliğin başarıyla veritabanına kaydedildi!",
-        [
-          { text: "Tamam", onPress: () => navigation.goBack() }
-        ]
-      );
-
+      Alert.alert("Başarılı!", "Etkinlik oluşturuldu.", [{ text: "Tamam", onPress: () => navigation.goBack() }]);
     } catch (error) {
       setIsLoading(false);
-      Alert.alert('Hata Oluştu', error.message);
+      Alert.alert('Hata', error.message);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-          <Feather name="x" size={24} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create New Event</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDarkMode ? '#121212' : '#FDFDFD' }]}>
+      <LinearGradient colors={['#9A73B5', '#4A1D5D']} style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}><Feather name="x" size={24} color="#FFF" /></TouchableOpacity>
+        <Text style={styles.headerTitle}>Yeni Etkinlik</Text>
         <View style={{ width: 24 }} />
-      </View>
+      </LinearGradient>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        
-        <View style={styles.progressSection}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.stepText}>Step 1 of 1</Text>
-            <Text style={styles.percentText}>100%</Text>
-          </View>
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: '100%' }]} />
-          </View>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.group}>
+          <Text style={[styles.label, { color: isDarkMode ? '#D1B8E0' : '#4A1D5D' }]}>Etkinlik Başlığı</Text>
+          <TextInput style={[styles.input, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF', borderColor: isDarkMode ? '#333' : '#D1B8E0', color: isDarkMode ? '#FFF' : '#000' }]} placeholder="Örn: Müzik Festivali" placeholderTextColor={isDarkMode ? '#888' : '#AAA'} value={title} onChangeText={setTitle} />
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Event Title *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., Spring Music Festival"
-            placeholderTextColor="#9CA3AF"
-            value={title}
-            onChangeText={setTitle}
-          />
+        <View style={styles.group}>
+          <Text style={[styles.label, { color: isDarkMode ? '#D1B8E0' : '#4A1D5D' }]}>Açıklama</Text>
+          <TextInput style={[styles.input, { height: 100, backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF', borderColor: isDarkMode ? '#333' : '#D1B8E0', color: isDarkMode ? '#FFF' : '#000' }]} multiline value={description} onChangeText={setDescription} placeholderTextColor={isDarkMode ? '#888' : '#AAA'} />
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Description *</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Describe your event..."
-            placeholderTextColor="#9CA3AF"
-            multiline
-            numberOfLines={4}
-            value={description}
-            onChangeText={setDescription}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Category</Text>
-          <View style={styles.categoryGrid}>
-            {CATEGORIES.map((cat, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.categoryPill,
-                  activeCategory === cat && styles.categoryPillActive
-                ]}
-                onPress={() => setActiveCategory(cat)}
-              >
-                <Text style={[
-                  styles.categoryText,
-                  activeCategory === cat && styles.categoryTextActive
-                ]}>{cat}</Text>
+        <View style={styles.group}>
+          <Text style={[styles.label, { color: isDarkMode ? '#D1B8E0' : '#4A1D5D' }]}>Kategori</Text>
+          <View style={styles.catGrid}>
+            {CATEGORIES.map(cat => (
+              <TouchableOpacity key={cat} style={[styles.pill, activeCategory === cat && styles.pillActive, { backgroundColor: activeCategory === cat ? '#4A1D5D' : (isDarkMode ? '#1E1E1E' : '#FFF'), borderColor: isDarkMode ? '#333' : '#D1B8E0' }]} onPress={() => setActiveCategory(cat)}>
+                <Text style={activeCategory === cat ? styles.pillTextActive : [styles.pillText, { color: isDarkMode ? '#DDD' : '#4A1D5D' }]}>{cat}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Max Capacity</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., 100"
-            placeholderTextColor="#9CA3AF"
-            keyboardType="number-pad"
-            value={capacity}
-            onChangeText={setCapacity}
-          />
+        <View style={styles.group}>
+          <Text style={[styles.label, { color: isDarkMode ? '#D1B8E0' : '#4A1D5D' }]}>Kapasite</Text>
+          <TextInput style={[styles.input, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF', borderColor: isDarkMode ? '#333' : '#D1B8E0', color: isDarkMode ? '#FFF' : '#000' }]} keyboardType="number-pad" value={capacity} onChangeText={setCapacity} placeholderTextColor={isDarkMode ? '#888' : '#AAA'} />
         </View>
 
-        <View style={styles.switchGroup}>
-          <Text style={styles.switchLabel}>This is an online event</Text>
-          <Switch
-            value={isOnline}
-            onValueChange={setIsOnline}
-            trackColor={{ false: '#E5E7EB', true: '#4F46E5' }}
-            thumbColor={'#FFF'}
-          />
+        <View style={styles.switchRow}>
+          <Text style={[styles.label, { marginBottom: 0, color: isDarkMode ? '#D1B8E0' : '#4A1D5D' }]}>Online Etkinlik mi?</Text>
+          <Switch value={isOnline} onValueChange={setIsOnline} trackColor={{ true: '#4A1D5D' }} />
         </View>
 
-        {/* Buton yükleme durumuna göre değişiyor */}
-        <TouchableOpacity style={styles.nextButton} onPress={handleCreateEvent} disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.nextButtonText}>Create Event</Text>
-          )}
+        <TouchableOpacity style={styles.submitBtn} onPress={handleCreateEvent} disabled={isLoading}>
+          {isLoading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>Etkinliği Oluştur</Text>}
         </TouchableOpacity>
-
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFF' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  closeButton: { padding: 4 },
-  content: { padding: 20, paddingBottom: 40 },
-  progressSection: { marginBottom: 32 },
-  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  stepText: { fontSize: 14, color: '#6B7280', fontWeight: '500' },
-  percentText: { fontSize: 14, color: '#4F46E5', fontWeight: '700' },
-  progressBarBg: { height: 6, backgroundColor: '#EEF2FF', borderRadius: 3 },
-  progressBarFill: { height: '100%', backgroundColor: '#4F46E5', borderRadius: 3 },
-  formGroup: { marginBottom: 24 },
-  label: { fontSize: 14, fontWeight: '600', color: '#111827', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: '#111827', backgroundColor: '#F9FAFB' },
-  textArea: { height: 100, textAlignVertical: 'top' },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  categoryPill: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFF' },
-  categoryPillActive: { backgroundColor: '#EEF2FF', borderColor: '#4F46E5' },
-  categoryText: { color: '#4B5563', fontWeight: '500', fontSize: 14 },
-  categoryTextActive: { color: '#4F46E5', fontWeight: '600' },
-  switchGroup: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, paddingVertical: 8 },
-  switchLabel: { fontSize: 15, fontWeight: '500', color: '#111827' },
-  nextButton: { backgroundColor: '#4F46E5', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 20 },
-  nextButtonText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, paddingTop: 40, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFF' },
+  content: { padding: 20 },
+  group: { marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
+  input: { borderWidth: 1, borderRadius: 0, padding: 12, fontSize: 15 },
+  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  pill: { padding: 10, borderRadius: 0, borderWidth: 1 },
+  pillActive: { backgroundColor: '#4A1D5D', borderColor: '#4A1D5D' },
+  pillText: { fontSize: 13 },
+  pillTextActive: { color: '#FFF' },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  submitBtn: { backgroundColor: '#4A1D5D', padding: 16, borderRadius: 0, alignItems: 'center' },
+  submitText: { color: '#FFF', fontWeight: '800', fontSize: 16 }
 });

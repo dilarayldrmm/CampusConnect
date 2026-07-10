@@ -1,165 +1,70 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  ScrollView,
-} from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, FlatList, StyleSheet, SafeAreaView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { ThemeContext } from '../../context/ThemeContext'; // 1. Context'i import et
 import { Feather } from '@expo/vector-icons';
-
-// Tasarımı doldurmak için geçici veriler (Dummy Data)
-const JOINED_COMMUNITIES = [
-  { id: '1', name: 'Computer Science Club', members: '1.234', category: 'Academic', icon: '💻', bgColor: '#3B82F6' },
-  { id: '2', name: 'Photography Society', members: '567', category: 'Art', icon: '📸', bgColor: '#8B5CF6' },
-  { id: '3', name: 'Basketball Team', members: '89', category: 'Sports', icon: '🏀', bgColor: '#F97316' },
-];
-
-const EXPLORE_COMMUNITIES = [
-  { id: '4', name: 'Debate Club', members: '345', category: 'Academic', icon: '🎤', bgColor: '#EF4444' },
-  { id: '5', name: 'Anime & Manga', members: '892', category: 'Art', icon: '🃏', bgColor: '#EC4899' },
-  { id: '6', name: 'Entrepreneurship Hub', members: '456', category: 'Business', icon: '💼', bgColor: '#10B981' },
-  { id: '7', name: 'Yoga & Wellness', members: '234', category: 'Sports', icon: '🧘‍♀️', bgColor: '#F59E0B' },
-  { id: '8', name: 'Gaming League', members: '1.567', category: 'Social', icon: '🎮', bgColor: '#6366F1' },
-  { id: '9', name: 'Environmental Action', members: '678', category: 'Social', icon: '🌍', bgColor: '#22C55E' },
-];
-
-const CATEGORIES = ['All', 'Academic', 'Sports', 'Art', 'Business'];
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function CommunityList({ navigation }) {
-  const [activeTab, setActiveTab] = useState('Joined');
-  const [activeCategory, setActiveCategory] = useState('All');
+  const { isDarkMode } = useContext(ThemeContext); // 2. Modu çek
+  const [communities, setCommunities] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // HATA BURADAYDI: Açılış <TouchableOpacity> ise kapanış da </TouchableOpacity> olmalı!
-  const renderCommunityItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.communityCard}
-      activeOpacity={0.7}
-      onPress={() => navigation.navigate('CommunityDetail', { id: item.id })}
-    >
-      <View style={styles.cardLeft}>
-        <View style={[styles.iconBox, { backgroundColor: item.bgColor }]}>
-          <Text style={styles.iconText}>{item.icon}</Text>
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={styles.communityName}>{item.name}</Text>
-          <Text style={styles.memberCount}>{item.members} members</Text>
-        </View>
-      </View>
-      
-      {activeTab === 'Joined' ? (
-        <Text style={styles.categoryTextRight}>{item.category}</Text>
-      ) : (
-        <View style={styles.joinButton}>
-          <Text style={styles.joinButtonText}>Join</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'communities'), (snapshot) => {
+      setCommunities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) return <View style={[styles.center, { backgroundColor: isDarkMode ? '#121212' : '#FDFDFD' }]}><ActivityIndicator size="large" color="#4A1D5D" /></View>;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Communities</Text>
-      </View>
-
-      <View style={styles.searchContainer}>
-        <Feather name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search communities..."
-          placeholderTextColor="#9CA3AF"
-        />
-      </View>
-
-      <View style={styles.topTabsContainer}>
-        <TouchableOpacity 
-          style={[styles.topTab, activeTab === 'Joined' && styles.topTabActive]}
-          onPress={() => setActiveTab('Joined')}
-        >
-          <Text style={[styles.topTabText, activeTab === 'Joined' && styles.topTabTextActive]}>Joined</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.topTab, activeTab === 'Explore' && styles.topTabActive]}
-          onPress={() => setActiveTab('Explore')}
-        >
-          <Text style={[styles.topTabText, activeTab === 'Explore' && styles.topTabTextActive]}>Explore</Text>
-        </TouchableOpacity>
-      </View>
-
-      {activeTab === 'Explore' && (
-        <View style={styles.filtersContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-            {CATEGORIES.map((cat, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.categoryPill,
-                  activeCategory === cat && styles.categoryPillActive
-                ]}
-                onPress={() => setActiveCategory(cat)}
-              >
-                <Text style={[
-                  styles.categoryText,
-                  activeCategory === cat && styles.categoryTextActive
-                ]}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
+    <SafeAreaView style={[styles.container, { backgroundColor: isDarkMode ? '#121212' : '#FDFDFD' }]}>
+      <LinearGradient colors={['#9A73B5', '#4A1D5D']} style={styles.header}>
+        <Text style={styles.headerTitle}>Topluluklar</Text>
+      </LinearGradient>
 
       <FlatList
-        data={activeTab === 'Joined' ? JOINED_COMMUNITIES : EXPLORE_COMMUNITIES}
+        data={communities}
         keyExtractor={(item) => item.id}
-        renderItem={renderCommunityItem}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={[styles.card, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF', borderColor: isDarkMode ? '#333' : '#F0E6F5' }]}
+            onPress={() => navigation.navigate('CommunityDetail', { communityId: item.id, name: item.name })}
+          >
+            <View style={[styles.iconBox, { backgroundColor: isDarkMode ? '#333' : '#F0E6F5' }]}><Feather name="users" size={20} color="#4A1D5D" /></View>
+            <View style={styles.info}>
+              <Text style={[styles.name, { color: isDarkMode ? '#FFF' : '#000' }]}>{item.name}</Text>
+              <Text style={[styles.desc, { color: isDarkMode ? '#AAA' : '#666' }]}>{item.memberCount || 0} Üye</Text>
+            </View>
+            <Feather name="chevron-right" size={20} color="#D1B8E0" />
+          </TouchableOpacity>
+        )}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAFAFA' },
-  header: { paddingHorizontal: 20, marginTop: 10, marginBottom: 16 },
-  headerTitle: { fontSize: 28, fontWeight: '700', color: '#111827' },
-  searchContainer: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6',
-    marginHorizontal: 20, borderRadius: 12, paddingHorizontal: 16, height: 46, marginBottom: 16,
+  container: { flex: 1 },
+  header: { padding: 32, paddingTop: 40, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, marginBottom: 10 },
+  headerTitle: { fontSize: 26, fontWeight: '900', color: '#FFF' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  list: { padding: 20 },
+  card: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 15, 
+    borderRadius: 0, 
+    marginBottom: 12, 
+    borderWidth: 1 
   },
-  searchIcon: { marginRight: 10 },
-  searchInput: { flex: 1, fontSize: 15, color: '#111827' },
-  topTabsContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginBottom: 16 },
-  topTab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  topTabActive: { borderBottomWidth: 2, borderBottomColor: '#4F46E5' },
-  topTabText: { fontSize: 15, fontWeight: '500', color: '#6B7280' },
-  topTabTextActive: { color: '#111827', fontWeight: '600' },
-  filtersContainer: { marginBottom: 12 },
-  filterScroll: { paddingHorizontal: 16 },
-  categoryPill: {
-    paddingVertical: 8, paddingHorizontal: 18, borderRadius: 20,
-    backgroundColor: '#F3F4F6', marginHorizontal: 4,
-  },
-  categoryPillActive: { backgroundColor: '#4F46E5' },
-  categoryText: { color: '#4B5563', fontWeight: '500', fontSize: 13 },
-  categoryTextActive: { color: '#FFF' },
-  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  communityCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
-  },
-  cardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  iconBox: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  iconText: { fontSize: 24 },
-  textContainer: { flex: 1 },
-  communityName: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 2 },
-  memberCount: { fontSize: 13, color: '#6B7280' },
-  categoryTextRight: { fontSize: 13, fontWeight: '500', color: '#4B5563' },
-  joinButton: { paddingVertical: 6, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#F3F4F6' },
-  joinButtonText: { color: '#111827', fontWeight: '600', fontSize: 13 },
+  iconBox: { width: 50, height: 50, borderRadius: 0, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  name: { fontSize: 15, fontWeight: '700' },
+  desc: { fontSize: 13, marginTop: 2 },
+  info: { flex: 1 }
 });

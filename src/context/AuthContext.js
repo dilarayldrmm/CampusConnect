@@ -1,27 +1,40 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { auth } from '../config/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, updateProfile } from 'firebase/auth';
 
-// Uygulamanın her yerinden erişebileceğimiz global bir Auth "deposu" oluşturuyoruz
 export const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // Başlangıçta kullanıcı yok (giriş yapmamış)
-  const [loading, setLoading] = useState(true); // Firebase'den yanıt gelene kadar bekleme durumu
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // onAuthStateChanged: Firebase'in kullanıcı oturum durumunu canlı olarak dinleyen harika bir fonksiyonu
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      setLoading(false); // Kullanıcı kontrolü bittiğinde yükleme ekranını kapat
+      setLoading(false);
     });
-
-    // Bileşen ekrandan kalktığında dinlemeyi durdur (Performans için)
     return unsubscribe;
   }, []);
 
+  // Profil güncelleme fonksiyonunu buraya ekledik
+  const updateUserData = async (displayName, photoURL) => {
+    if (auth.currentUser) {
+      try {
+        await updateProfile(auth.currentUser, {
+          displayName: displayName,
+          photoURL: photoURL,
+        });
+        // State'i manuel olarak tetikleyerek uygulamanın her yerinde yenilenmesini sağlıyoruz
+        setUser({ ...auth.currentUser, displayName, photoURL });
+      } catch (error) {
+        console.error("Profil güncellenemedi:", error);
+        throw error;
+      }
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, setUser, loading }}>
+    <AuthContext.Provider value={{ user, setUser, loading, updateUserData }}>
       {children}
     </AuthContext.Provider>
   );

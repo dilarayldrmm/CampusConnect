@@ -1,165 +1,78 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Switch
-} from 'react-native';
+import React, { useState, useContext } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { AuthContext } from '../../context/AuthContext';
+import { ThemeContext } from '../../context/ThemeContext';
 
 export default function Settings({ navigation }) {
+  const { signOut } = useContext(AuthContext);
+  const { isDarkMode, toggleTheme } = useContext(ThemeContext);
+  
   const [pushEnabled, setPushEnabled] = useState(true);
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [messagesEnabled, setMessagesEnabled] = useState(true);
 
+  const handleLogout = () => {
+    Alert.alert("Çıkış Yap", "Hesabınızdan çıkış yapmak istediğinize emin misiniz?", [
+      { text: "İptal", style: "cancel" },
+      { text: "Çıkış Yap", style: "destructive", onPress: () => signOut() }
+    ]);
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Feather name="arrow-left" size={24} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDarkMode ? '#121212' : '#FDFDFD' }]}>
+      <LinearGradient colors={['#9A73B5', '#4A1D5D']} style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}><Feather name="arrow-left" size={24} color="#FFF" /></TouchableOpacity>
+        <Text style={styles.headerTitle}>Ayarlar</Text>
         <View style={{ width: 24 }} />
-      </View>
+      </LinearGradient>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={[styles.sectionTitle, { color: isDarkMode ? '#D1B8E0' : '#4A1D5D' }]}>GÖRÜNÜM</Text>
         
-        {/* APPEARANCE */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>APPEARANCE</Text>
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemTitle}>Theme</Text>
-              <Text style={styles.menuItemSubtitle}>Light Mode</Text>
-            </View>
-            <Feather name="chevron-right" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* NOTIFICATIONS */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
-          
-          <View style={styles.toggleItem}>
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemTitle}>Push Notifications</Text>
-              <Text style={styles.menuItemSubtitle}>Receive push notifications</Text>
-            </View>
-            <Switch
-              value={pushEnabled}
-              onValueChange={setPushEnabled}
-              trackColor={{ false: '#E5E7EB', true: '#4F46E5' }}
-              thumbColor={'#FFF'}
-            />
+        <TouchableOpacity style={[styles.menuItem, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF', borderColor: isDarkMode ? '#333' : '#D1B8E0' }]} onPress={toggleTheme}>
+          <View>
+            <Text style={[styles.menuTitle, { color: isDarkMode ? '#FFF' : '#000' }]}>Tema</Text>
+            <Text style={[styles.menuSub, { color: isDarkMode ? '#AAA' : '#666' }]}>{isDarkMode ? 'Karanlık Mod Aktif' : 'Aydınlık Mod Aktif'}</Text>
           </View>
+          <Feather name={isDarkMode ? 'moon' : 'sun'} size={20} color="#4A1D5D" />
+        </TouchableOpacity>
 
-          <View style={styles.toggleItem}>
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemTitle}>Event Reminders</Text>
-              <Text style={styles.menuItemSubtitle}>Get reminded before events start</Text>
-            </View>
-            <Switch
-              value={remindersEnabled}
-              onValueChange={setRemindersEnabled}
-              trackColor={{ false: '#E5E7EB', true: '#4F46E5' }}
-              thumbColor={'#FFF'}
-            />
+        <Text style={[styles.sectionTitle, { color: isDarkMode ? '#D1B8E0' : '#4A1D5D' }]}>BİLDİRİMLER</Text>
+        {[
+          { title: 'Push Bildirimleri', val: pushEnabled, set: setPushEnabled },
+          { title: 'Etkinlik Hatırlatıcıları', val: remindersEnabled, set: setRemindersEnabled },
+          { title: 'Mesaj Bildirimleri', val: messagesEnabled, set: setMessagesEnabled }
+        ].map((item, i) => (
+          <View key={i} style={[styles.menuItem, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF', borderColor: isDarkMode ? '#333' : '#D1B8E0' }]}>
+            <Text style={[styles.menuTitle, { color: isDarkMode ? '#FFF' : '#000' }]}>{item.title}</Text>
+            <Switch value={item.val} onValueChange={item.set} trackColor={{ true: '#4A1D5D' }} />
           </View>
+        ))}
 
-          <View style={styles.toggleItem}>
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemTitle}>Message Notifications</Text>
-              <Text style={styles.menuItemSubtitle}>Get notified of new messages</Text>
-            </View>
-            <Switch
-              value={messagesEnabled}
-              onValueChange={setMessagesEnabled}
-              trackColor={{ false: '#E5E7EB', true: '#4F46E5' }}
-              thumbColor={'#FFF'}
-            />
-          </View>
-        </View>
+        <Text style={[styles.sectionTitle, { color: isDarkMode ? '#D1B8E0' : '#4A1D5D' }]}>HESAP</Text>
+        <TouchableOpacity style={[styles.menuItem, { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF', borderColor: isDarkMode ? '#333' : '#D1B8E0' }]} onPress={() => Alert.alert("Bilgi", "Profil düzenleme sayfası yakında eklenecek.")}>
+          <Text style={[styles.menuTitle, { color: isDarkMode ? '#FFF' : '#000' }]}>Profili Düzenle</Text>
+          <Feather name="chevron-right" size={20} color="#4A1D5D" />
+        </TouchableOpacity>
 
-        {/* ACCOUNT */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ACCOUNT</Text>
-          
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemTitle}>Edit Profile</Text>
-              <Text style={styles.menuItemSubtitle}>Update your profile information</Text>
-            </View>
-            <Feather name="chevron-right" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemTitle}>Change Password</Text>
-              <Text style={styles.menuItemSubtitle}>Update your password</Text>
-            </View>
-            <Feather name="chevron-right" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* DANGER ZONE */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: '#EF4444' }]}>DANGER ZONE</Text>
-          <TouchableOpacity style={styles.logoutButton}>
-            <Text style={styles.logoutText}>Log Out</Text>
-          </TouchableOpacity>
-        </View>
-
+        <TouchableOpacity style={[styles.menuItem, { marginTop: 20, backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF', borderColor: '#EF4444' }]} onPress={handleLogout}>
+          <Text style={[styles.menuTitle, { color: '#EF4444' }]}>Çıkış Yap</Text>
+          <Feather name="log-out" size={20} color="#EF4444" />
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAFAFA' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  backButton: { padding: 4 },
-  content: { padding: 20, paddingBottom: 40 },
-  section: { marginBottom: 32 },
-  sectionTitle: { fontSize: 12, fontWeight: '700', color: '#6B7280', letterSpacing: 1, marginBottom: 16, paddingLeft: 4 },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 8,
-  },
-  toggleItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 8,
-  },
-  menuItemLeft: { flex: 1, paddingRight: 16 },
-  menuItemTitle: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 4 },
-  menuItemSubtitle: { fontSize: 13, color: '#6B7280' },
-  logoutButton: {
-    backgroundColor: '#FEF2F2',
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  logoutText: { color: '#EF4444', fontSize: 16, fontWeight: '700' },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, paddingTop: 40, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  headerTitle: { fontSize: 20, fontWeight: '900', color: '#FFF' },
+  content: { padding: 20 },
+  sectionTitle: { fontSize: 12, fontWeight: '900', marginTop: 20, marginBottom: 10, letterSpacing: 1 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 15, borderRadius: 0, borderWidth: 1, marginBottom: 10 },
+  menuTitle: { fontSize: 15, fontWeight: '700' },
+  menuSub: { fontSize: 13 }
 });
